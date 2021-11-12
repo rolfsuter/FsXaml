@@ -10,7 +10,7 @@ open System.Windows.Threading
 open System.Xaml
 
 module internal Utilities =
-    let internal castAs<'T when 'T : null> (o:obj) = 
+    let internal castAs<'T when 'T : null> (o:obj) =
         match o with
         | :? 'T as res -> res
         | _ -> null
@@ -19,7 +19,7 @@ module internal Utilities =
         match o with
         | :? 'T as res -> Some res
         | _ -> None
-    
+
 module InjectXaml =
     [<Literal>]
     let private errorText = "Unable to load XAML data. Verify that all .xaml files are compiled as \"Resource\""
@@ -30,20 +30,20 @@ module InjectXaml =
         use resStream = ass.GetManifestResourceStream(resName)
         match resStream with
         | null -> failwith errorText
-        | _ ->            
+        | _ ->
             use reader = new System.Resources.ResourceReader(resStream)
             let dataType, data = file.ToLowerInvariant() |> reader.GetResourceData
             let pos = match dataType with
                         | "ResourceTypeCode.Stream" -> 4L
                         | "ResourceTypeCode.Byte" -> 4L
                         | _ -> 0L
-            
+
             let ms = new MemoryStream(data)
             ms.Position <- pos
             ms
 
     let private getEmbeddedResourceStream (file : string) (ass : System.Reflection.Assembly) =
-        let resourceName = 
+        let resourceName =
             ass.GetManifestResourceNames()
             |> Array.tryFind (fun n -> n.ToLowerInvariant().Trim() = file.ToLowerInvariant().Trim())
 
@@ -53,7 +53,7 @@ module InjectXaml =
             use resStream = ass.GetManifestResourceStream(name)
             match resStream with
             | null -> failwith errorText
-            | _ ->                                    
+            | _ ->
                 let ms = new MemoryStream()
                 resStream.CopyTo(ms)
                 ms.Position <- 0L
@@ -62,7 +62,7 @@ module InjectXaml =
     let from (file : string) (loadFromResource : bool) (root : obj) =
         let s = System.IO.Packaging.PackUriHelper.UriSchemePack
         let t = root.GetType()
-        
+
         use ms =
             if loadFromResource then
                 try
@@ -75,15 +75,15 @@ module InjectXaml =
 
         use stream = new StreamReader(ms)
         use reader = new XamlXmlReader(stream, XamlReader.GetWpfSchemaContext())
-            
+
         let writerSettings = XamlObjectWriterSettings()
         writerSettings.RootObjectInstance <- root
         use writer = new XamlObjectWriter(reader.SchemaContext, writerSettings)
 
         try
-            while reader.Read() do                
+            while reader.Read() do
                 writer.WriteNode(reader)
-        with 
+        with
         | :? XamlException as xamlException -> // From writer
             let message =
                 if reader.HasLineInfo then
@@ -96,26 +96,26 @@ module InjectXaml =
                 if reader.HasLineInfo then
                     sprintf "Error parsing XAML contents from %s.\n  Error at line %d, column %d.\n  Element beginning at line %d, column %d." file xmlE.LineNumber xmlE.LinePosition reader.LineNumber reader.LinePosition
                 else
-                    sprintf "Error parsing XAML contents from %s.\n  Error at line %d, column %d." file xmlE.LineNumber xmlE.LinePosition                        
+                    sprintf "Error parsing XAML contents from %s.\n  Error at line %d, column %d." file xmlE.LineNumber xmlE.LinePosition
             raise <| XamlException(message, xmlE)
         writer.Result
         |> ignore
 
 /// Provides access to named children of a FrameworkElement
-[<Sealed;AbstractClass>] 
+[<Sealed;AbstractClass>]
 type MemberAccessor () =
     static let mutable weakTable = System.Runtime.CompilerServices.ConditionalWeakTable<FrameworkElement,Dictionary<string,obj>>()
-        
+
     /// Gets a named child element by name
-    static member GetNamedMember<'a> (root : FrameworkElement) name : 'a = 
+    static member GetNamedMember<'a> (root : FrameworkElement) name : 'a =
         let dict = weakTable.GetOrCreateValue root
 
         lock dict (fun _ ->
             match dict.TryGetValue name with
             | true , element -> element
-            | false , _ -> 
-                let element = 
-                    match root.FindName (name) with            
+            | false , _ ->
+                let element =
+                    match root.FindName (name) with
                     | null ->
                         // Fallback to searching the logical tree if our template hasn't been applied
                         LogicalTreeHelper.FindLogicalNode(root, name) :> obj
@@ -137,12 +137,12 @@ module Wpf =
             |> SynchronizationContext.SetSynchronizationContext
         | _ -> ()
 
-        SynchronizationContext.Current                        
+        SynchronizationContext.Current
 
     let installSynchronizationContext () =
         installAndGetSynchronizationContext() |> ignore
 
-module Reflection = 
+module Reflection =
     let tryGetMethod (t: Type) methodName =
         let tryGetMethod (t: Type) methodName =
             let mi = t.GetMethod methodName
@@ -158,7 +158,7 @@ module Reflection =
             tryGetMethod t methodName
         else Some(mi)
 
-    let invoke source methodName arg = 
+    let invoke source methodName arg =
         let mi = tryGetAnyMethod source methodName
         match mi with
         | Some mi -> mi.Invoke(source, [| arg |])

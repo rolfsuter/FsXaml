@@ -12,40 +12,40 @@ open ProviderImplementation.ProvidedTypes
 open FsXaml.TypeProviders.Helper
 
 [<TypeProvider>]
-type public XamlTypeProvider(config : TypeProviderConfig) as this = 
+type public XamlTypeProvider(config : TypeProviderConfig) as this =
     inherit TypeProviderForNamespaces(config)
 
     let assembly = Assembly.GetExecutingAssembly()
-    let nameSpace = this.GetType().Namespace    
+    let nameSpace = this.GetType().Namespace
     let providerType = ProvidedTypeDefinition(assembly, nameSpace, "XAML", Some typeof<obj>, isErased = false)
 
     let fileSystemWatchers = ResizeArray<IDisposable>()
-     
-    let assemblies = 
+
+    let assemblies =
         config.ReferencedAssemblies
-        |> Seq.choose (fun asm -> 
+        |> Seq.choose (fun asm ->
             try
                 // This is a fix for #34: Previously, 64bit libraries could fail to load, which would make the type provider fail.
                 // By filtering out assemblies that don't load, we should still allow all relevent WPF assemblies to load
                 asm |> (IO.File.ReadAllBytes >> Assembly.Load >> Some)
-            with 
+            with
             | _ -> None)
         |> Array.ofSeq
-        
+
     do
         this.Disposing.Add((fun _ ->
             for watcher in fileSystemWatchers do
-                watcher.Dispose() 
+                watcher.Dispose()
             fileSystemWatchers.Clear()
         ))
-    
+
         providerType.DefineStaticParameters(
             parameters =
                 [
                     ProvidedStaticParameter("XamlResourceLocation", typeof<string>, parameterDefaultValue = "")
                     ProvidedStaticParameter("XamlFileLocation",     typeof<string>, parameterDefaultValue = "")
-                ], 
-            instantiationFunction = (fun typeName parameterValues ->   
+                ],
+            instantiationFunction = (fun typeName parameterValues ->
                 let resourcePath = string parameterValues.[0]
                 let filePath     = string parameterValues.[1]
 
@@ -66,14 +66,14 @@ type public XamlTypeProvider(config : TypeProviderConfig) as this =
                 let rootTypeInXaml = xamlInfo.RootType.UnderlyingType
 
                 let assemblyPath =
-                    let tempFolderName = Path.GetTempPath()                    
+                    let tempFolderName = Path.GetTempPath()
                     let filename = "fsxaml_" + Path.GetRandomFileName() + ".dll"
                     Path.Combine(tempFolderName, filename)
                 let assemblyName = AssemblyName(Path.GetFileNameWithoutExtension(assemblyPath))
-                                            
-                let providedAssembly = ProvidedAssembly(assemblyName, assemblyPath)                
-                
-                // Implement IComponentConnector                
+
+                let providedAssembly = ProvidedAssembly(assemblyName, assemblyPath)
+
+                // Implement IComponentConnector
                 let iComponentConnectorType = typeof<System.Windows.Markup.IComponentConnector>
 
                 // Create a field for tracking whether we're initialized
@@ -84,31 +84,31 @@ type public XamlTypeProvider(config : TypeProviderConfig) as this =
                 let initializeComponentInterface = iComponentConnectorType.GetMethod("InitializeComponent")
                 let connectInterface = iComponentConnectorType.GetMethod("Connect")
 
-                let initializeComponentMethod = 
-                    ProvidedMethod("InitializeComponent", [ ], typeof<System.Void>, 
+                let initializeComponentMethod =
+                    ProvidedMethod("InitializeComponent", [ ], typeof<System.Void>,
                             invokeCode =
                                 fun args ->
-                                    match args with 
+                                    match args with
                                     | [this] ->
                                         let o = Expr.Coerce(this, typeof<obj>)
                                         let isInit = Expr.FieldGet(this, initializedField)
                                         let setInit = Expr.FieldSet(this, initializedField, Expr.Value(true))
                                         <@@
                                             if (not (%%isInit : bool)) then
-                                                (%%setInit)                                            
-                                                InjectXaml.from path loadFromResource (%%o : obj)                                            
+                                                (%%setInit)
+                                                InjectXaml.from path loadFromResource (%%o : obj)
                                         @@>
                                     | _ -> failwith "Wrong constructor arguments")
-                                        
+
                     |> XamlTypeUtils.asInterfaceImplementation
-                let connectMethod = 
+                let connectMethod =
                     ProvidedMethod("Connect", [ ProvidedParameter("connectionId", typeof<int>) ; ProvidedParameter("target", typeof<obj>) ], typeof<System.Void>, invokeCode = XamlTypeUtils.emptyInvokeCode)
                     |> XamlTypeUtils.asInterfaceImplementation
 
-                let generatedType = 
-                    XamlTypeUtils.createProvidedType providedAssembly nameSpace typeName rootTypeInXaml (path, loadFromResource) initializeComponentMethod connectMethod initializedField xamlInfo 
+                let generatedType =
+                    XamlTypeUtils.createProvidedType providedAssembly nameSpace typeName rootTypeInXaml (path, loadFromResource) initializeComponentMethod connectMethod initializedField xamlInfo
 
-                generatedType.AddMember initializedField                
+                generatedType.AddMember initializedField
 
                 // Wire up IComponentConnector
                 generatedType.AddInterfaceImplementation iComponentConnectorType
@@ -122,17 +122,17 @@ type public XamlTypeProvider(config : TypeProviderConfig) as this =
 
         this.AddNamespace(nameSpace, [ providerType ])
 
-    override __.ResolveAssembly(args) = 
+    override __.ResolveAssembly(args) =
         let name = System.Reflection.AssemblyName(args.Name)
-        let existingAssembly = 
+        let existingAssembly =
             System.AppDomain.CurrentDomain.GetAssemblies()
             |> Seq.append assemblies
             |> Seq.tryFind(fun a -> System.Reflection.AssemblyName.ReferenceMatchesDefinition(name, a.GetName()))
         match existingAssembly with
         | Some a -> a
-        | None -> 
+        | None ->
             // Fallback to default behavior
             base.ResolveAssembly(args)
-        
-[<assembly:TypeProviderAssembly>] 
+
+[<assembly:TypeProviderAssembly>]
 do()

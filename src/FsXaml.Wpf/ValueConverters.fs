@@ -18,14 +18,14 @@ module DefaultConverters =
 type ConverterParams = { Parameter : obj; CultureInfo : Globalization.CultureInfo }
 
 /// Base class for standard WPF style converters, mapped to curried forms for the convert and convert back methods
-type ConverterBase(convertFunction, convertBackFunction) =    
+type ConverterBase(convertFunction, convertBackFunction) =
     /// constructor take nullFunction as inputs
     new(convertFunction : (obj -> Type -> obj -> Globalization.CultureInfo -> obj)) = ConverterBase(convertFunction, ConverterBase.NotImplementedConverter)
 
     static member val NotImplementedConverter = fun (value : obj) (target : Type) (param : obj) (culture : Globalization.CultureInfo) -> raise(NotImplementedException())
 
-    member val Convert : (obj -> Type -> obj -> Globalization.CultureInfo -> obj) = convertFunction with get, set 
-    member val ConvertBack  : (obj -> Type -> obj -> Globalization.CultureInfo -> obj) = convertBackFunction with get, set 
+    member val Convert : (obj -> Type -> obj -> Globalization.CultureInfo -> obj) = convertFunction with get, set
+    member val ConvertBack  : (obj -> Type -> obj -> Globalization.CultureInfo -> obj) = convertBackFunction with get, set
 
     // implement the IValueConverter
     interface IValueConverter with
@@ -40,8 +40,8 @@ type ConverterBase(convertFunction, convertBackFunction) =
 type Converter<'a,'b>(convertFunction : ('a -> ConverterParams -> 'b), defaultConvertOnFailure : 'b, convertBackFunction : ('b -> ConverterParams -> 'a), defaultConvertBackOnFailure : 'a) as self =
     inherit ConverterBase(ConverterBase.NotImplementedConverter, ConverterBase.NotImplementedConverter)
 
-    let fWrapped (value : obj) (targetType : Type) (param : obj) (culture : Globalization.CultureInfo) = 
-        let param = { Parameter = param ; CultureInfo = culture }        
+    let fWrapped (value : obj) (targetType : Type) (param : obj) (culture : Globalization.CultureInfo) =
+        let param = { Parameter = param ; CultureInfo = culture }
         let a = FsXaml.Utilities.downcastAndCreateOption<'a>(value)
         let convType = typeof<System.IConvertible>
         match (targetType,typeof<'b>) with
@@ -54,9 +54,9 @@ type Converter<'a,'b>(convertFunction : ('a -> ConverterParams -> 'b), defaultCo
             | None -> box defaultConvertOnFailure
             | Some v -> Convert.ChangeType(box(convertFunction v param), x)
         | _,_ -> box defaultConvertOnFailure
-    let fWrappedBack (value : obj) (targetType : Type) (param : obj) (culture : Globalization.CultureInfo) = 
-        let param = { Parameter = param ; CultureInfo = culture }        
-        let a = FsXaml.Utilities.downcastAndCreateOption<'b>(value)      
+    let fWrappedBack (value : obj) (targetType : Type) (param : obj) (culture : Globalization.CultureInfo) =
+        let param = { Parameter = param ; CultureInfo = culture }
+        let a = FsXaml.Utilities.downcastAndCreateOption<'b>(value)
         let convType = typeof<System.IConvertible>
         match (targetType,typeof<'a>) with
         | x,b when x.IsAssignableFrom(b) ->
@@ -69,9 +69,9 @@ type Converter<'a,'b>(convertFunction : ('a -> ConverterParams -> 'b), defaultCo
             | Some v -> Convert.ChangeType(box(convertBackFunction v param), x)
         | _,_ -> box defaultConvertBackOnFailure
 
-    static let notImplementedForward (value : 'a) (p : ConverterParams) : 'b  = 
+    static let notImplementedForward (value : 'a) (p : ConverterParams) : 'b  =
         raise(NotImplementedException())
-    static let notImplementedBack (value : 'b) (p : ConverterParams) : 'a  = 
+    static let notImplementedBack (value : 'b) (p : ConverterParams) : 'a  =
         raise(NotImplementedException())
 
     do
@@ -91,7 +91,7 @@ type EventArgsConverterBase(convertFun) =
 type EventArgsConverter<'a, 'b when 'a :> EventArgs>(convertFun, defaultOnFailure : 'b) =
     inherit EventArgsConverterBase((fun value _ ->
             let a = FsXaml.Utilities.downcastAndCreateOption<'a>(value)
-            let b = 
+            let b =
                 match a with
                 | None -> defaultOnFailure
                 | Some(v) -> convertFun(v)
@@ -101,7 +101,7 @@ type EventArgsParamConverter<'a, 'b, 'c when 'a :> EventArgs>(convertFun, defaul
     inherit EventArgsConverterBase((fun value param ->
             let a = FsXaml.Utilities.downcastAndCreateOption<'a>(value)
             let b = FsXaml.Utilities.downcastAndCreateOption<'b>(param)
-            let c = 
+            let c =
                 match a, b with
                 | Some(v), Some(p) -> convertFun v p
                 | _, _ -> defaultOnFailure
@@ -115,10 +115,10 @@ type ValidationErrorsToStringConverter() =
             | _ ->
                 match values.[0] with
                 | :? ReadOnlyObservableCollection<ValidationError> as collection ->
-                    let values = 
+                    let values =
                         collection
-                        |> Seq.map (fun v -> v.ErrorContent :?> string) 
-                    String.Join(Environment.NewLine, values) :> obj                        
+                        |> Seq.map (fun v -> v.ErrorContent :?> string)
+                    String.Join(Environment.NewLine, values) :> obj
                 | _ -> null
         override this.ConvertBack(value, targetType, parameter, culture) =
             raise(NotImplementedException())
@@ -127,20 +127,20 @@ type BooleanConverter<'a when 'a : equality>(trueValue : 'a, falseValue: 'a) =
     inherit ConverterBase
         ((fun b _ _ _ ->
             try
-                let value : bool = unbox b 
+                let value : bool = unbox b
                 match value with
                 | true -> box trueValue
                 | false -> box falseValue
             with
             | _ -> DependencyProperty.UnsetValue),
-        (fun v _ _ _ -> 
+        (fun v _ _ _ ->
             try
                 match v with
                 | value when unbox value = trueValue -> box true
                 | _ -> box false
             with
             | _ -> box false))
-    
+
 type BooleanToVisibilityConverter() =
     inherit BooleanConverter<Visibility>(Visibility.Visible, Visibility.Collapsed)
 
@@ -151,4 +151,4 @@ type BooleanToCollapsedConverter() =
     inherit BooleanConverter<Visibility>(Visibility.Collapsed, Visibility.Visible)
 
 type BooleanToInverseConverter() =
-    inherit BooleanConverter<bool>(false, true)        
+    inherit BooleanConverter<bool>(false, true)

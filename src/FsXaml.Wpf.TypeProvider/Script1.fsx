@@ -30,7 +30,7 @@ let parseXaml (strm : Stream) =
     let rec moveToObject (reader : XamlXmlReader) =
         match reader.NodeType with
         | XamlNodeType.StartObject -> Some reader
-        | _ -> 
+        | _ ->
             if not(reader.Read()) then
                 None
             else
@@ -41,7 +41,7 @@ let parseXaml (strm : Stream) =
         | XamlNodeType.StartMember -> Some reader
         | XamlNodeType.StartObject -> None
         | XamlNodeType.EndObject -> None
-        | _ -> 
+        | _ ->
             if not(reader.Read()) then
                 None
             else
@@ -54,62 +54,62 @@ let parseXaml (strm : Stream) =
         let t = moveToMember reader
 
         match t with
-        | None -> 
+        | None ->
             false
         | Some t ->
             match rootType, t.Member.IsDirective, t.Member.Name, t.Member.IsEvent with
-            | RootNodeType.FrameworkElement, true, "Name", false 
-            | RootNodeType.Application, true, "Key", false 
-            | RootNodeType.ResourceDictionary, true, "Key", false -> 
+            | RootNodeType.FrameworkElement, true, "Name", false
+            | RootNodeType.Application, true, "Key", false
+            | RootNodeType.ResourceDictionary, true, "Key", false ->
                 if reader.Read() then
                     let v = string reader.Value
                     if not(String.IsNullOrWhiteSpace(v)) then
-                        namedMembers <- (v, currentObject) :: namedMembers                    
+                        namedMembers <- (v, currentObject) :: namedMembers
             | RootNodeType.FrameworkElement, false, _, true ->
                 let xt = t.Member.Type
                 if reader.Read() then
                     let v = string reader.Value
                     if not(String.IsNullOrWhiteSpace(v)) then
-                        eventHandlers <- (v, xt) :: eventHandlers            
+                        eventHandlers <- (v, xt) :: eventHandlers
             | _ -> ()
 
             reader.Read() |> ignore
             true
 
-    while (Option.isSome <| moveToObject reader) do    
-        currentObject <- reader.Type    
+    while (Option.isSome <| moveToObject reader) do
+        currentObject <- reader.Type
 
         // Check and set our root element
-        match root with 
-        | None -> 
-            try             
-                let nodeType = 
+        match root with
+        | None ->
+            try
+                let nodeType =
                     match currentObject.UnderlyingType with
                     | t when typeof<Application>.IsAssignableFrom(t) -> RootNodeType.Application
                     | t when typeof<ResourceDictionary>.IsAssignableFrom(t) -> RootNodeType.ResourceDictionary
                     | t when typeof<FrameworkElement>.IsAssignableFrom(t) -> RootNodeType.FrameworkElement
                     | _ -> failwith "Unknown"
                 root <- Some (currentObject, nodeType)
-            with 
+            with
             | _ -> ()
         | _ -> ()
 
         reader.Read() |> ignore
         match root with
         | Some(_,t) ->
-            while processMember reader t do        
+            while processMember reader t do
                 ()
         | None -> ()
-    
+
     let root = Option.get root
     { RootType = fst root ; RootNodeType = snd root ; Members = namedMembers ; Events = eventHandlers }
 
-let mainViewXaml = """<UserControl     
+let mainViewXaml = """<UserControl
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:fsxaml="http://github.com/fsprojects/FsXaml"
-        xmlns:local="clr-namespace:ViewModels;assembly=WpfSimpleMvvmApplication"         
-        xmlns:views="clr-namespace:Views;assembly=WpfSimpleMvvmApplication"         
+        xmlns:local="clr-namespace:ViewModels;assembly=WpfSimpleMvvmApplication"
+        xmlns:views="clr-namespace:Views;assembly=WpfSimpleMvvmApplication"
         MinHeight="220" MinWidth="300" Height="Auto"
         x:Name="Self"
         >
@@ -142,12 +142,12 @@ let mainViewXaml = """<UserControl
         <TextBlock Margin="3" Grid.Row="2" Grid.Column="0" Text="Full Name:" />
         <TextBox x:Name="tbFullName" IsReadOnly="true" IsTabStop="False" Foreground="Gray"  Margin="3" Grid.Column="1" Grid.Row="2" FontSize="16" Text="{Binding FullName, Mode=OneWay}"/>
         <TextBlock Grid.Row="3" Margin="3" Text="Errors:" />
-        <Border            
+        <Border
             Margin="3" VerticalAlignment="Stretch"  Grid.Row="4" Grid.ColumnSpan="2" BorderThickness="1" BorderBrush="DarkGray">
             <!-- Forcing element name binding for test against Issue #38 -->
             <views:ErrorView DataContext="{Binding Path=DataContext, ElementName=Self}" />
         </Border>
-        <Button Margin="3" Click="TestClick" Grid.Row="5" Grid.ColumnSpan="2" FontSize="16" Command="{Binding OkCommand}" CommandParameter="{Binding FullName}">Ok</Button>        
+        <Button Margin="3" Click="TestClick" Grid.Row="5" Grid.ColumnSpan="2" FontSize="16" Command="{Binding OkCommand}" CommandParameter="{Binding FullName}">Ok</Button>
     </Grid>
 </UserControl>"""
 
@@ -162,7 +162,7 @@ let resourceXaml = """<ResourceDictionary
         <Style.Resources>
             <Style x:Key="{x:Type ToolTip}" TargetType="{x:Type ToolTip}">
                 <Setter Property="Foreground" Value="White"/>
-                <Setter Property="Background" Value="Red"/>                
+                <Setter Property="Background" Value="Red"/>
             </Style>
         </Style.Resources>
         <Style.Triggers>
@@ -172,11 +172,11 @@ let resourceXaml = """<ResourceDictionary
                         <MultiBinding Converter="{StaticResource validationConverter}">
                             <Binding RelativeSource="{x:Static RelativeSource.Self}" Path="(Validation.Errors)" />
                             <Binding RelativeSource="{x:Static RelativeSource.Self}" Path="(Validation.Errors).Count" />
-                        </MultiBinding>                        
+                        </MultiBinding>
                     </Setter.Value>
                 </Setter>
             </Trigger>
-        </Style.Triggers>        
+        </Style.Triggers>
         <Setter Property="Validation.ErrorTemplate">
             <Setter.Value>
                 <ControlTemplate>

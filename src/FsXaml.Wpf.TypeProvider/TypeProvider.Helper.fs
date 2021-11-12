@@ -5,9 +5,9 @@ open System.IO
 open ProviderImplementation.ProvidedTypes
 
 let findConfigFile resolutionFolder (configFileName: string) =
-    if Path.IsPathRooted configFileName then 
-        configFileName 
-    else 
+    if Path.IsPathRooted configFileName then
+        configFileName
+    else
         Path.Combine(resolutionFolder, configFileName)
 
 let seqType ty = typedefof<seq<_>>.MakeGenericType[| ty |]
@@ -15,7 +15,7 @@ let listType ty = typedefof<list<_>>.MakeGenericType[| ty |]
 let optionType ty = typedefof<option<_>>.MakeGenericType[| ty |]
 
 /// Implements invalidation of schema when the file changes
-let watchForChanges (ownerType:TypeProviderForNamespaces) (fileName:string) = 
+let watchForChanges (ownerType:TypeProviderForNamespaces) (fileName:string) =
     if fileName.StartsWith("http", System.StringComparison.InvariantCultureIgnoreCase) then None else
 
     let path = Path.GetDirectoryName(fileName)
@@ -23,7 +23,7 @@ let watchForChanges (ownerType:TypeProviderForNamespaces) (fileName:string) =
     let watcher = new FileSystemWatcher(Filter = name, Path = path)
     watcher.Changed.Add(fun _ -> ownerType.Invalidate())
     watcher.EnableRaisingEvents <- true
-    Some (watcher :> IDisposable) 
+    Some (watcher :> IDisposable)
 
 // Get the assembly and namespace used to house the provided types
 let thisAssembly = System.Reflection.Assembly.GetExecutingAssembly()
@@ -40,8 +40,8 @@ open Microsoft.FSharp.Core.CompilerServices
 //    cfg.GetType().GetProperty("ResolutionFolder").GetSetMethod(nonPublic = true).Invoke(cfg, [| box resolutionFolder |]) |> ignore
 //    cfg.GetType().GetProperty("ReferencedAssemblies").GetSetMethod(nonPublic = true).Invoke(cfg, [| box ([||]: string[]) |]) |> ignore
 //
-//    let typeProviderForNamespaces = new TypeProviderForNamespaces() 
-//    let providedTypeDefinition  = 
+//    let typeProviderForNamespaces = new TypeProviderForNamespaces()
+//    let providedTypeDefinition  =
 //        providedTypeGenerator typeProviderForNamespaces cfg :> ProvidedTypeDefinition
 //
 //    match args with
@@ -59,9 +59,9 @@ open Microsoft.FSharp.Core.CompilerServices
 //                yield providedType :?> ProvidedTypeDefinition }
 //    generate (fun _ cfg -> providedTypeGeneratorSelector (providedTypeGenerator cfg)) resolutionFolder args
 
-//let private innerPrettyPrint (maxDepth: int option) exclude (t: ProvidedTypeDefinition) =        
+//let private innerPrettyPrint (maxDepth: int option) exclude (t: ProvidedTypeDefinition) =
 //
-//    let ns = 
+//    let ns =
 //        [ t.Namespace
 //          "Microsoft.FSharp.Core"
 //          "Microsoft.FSharp.Core.Operators"
@@ -100,13 +100,13 @@ open Microsoft.FSharp.Core.CompilerServices
 //        | :? ProvidedTypeDefinition as t ->
 //            add t
 //            t.Name.Split([| ',' |]).[0]
-//        | t when t.IsGenericType ->            
+//        | t when t.IsGenericType ->
 //            let hasUnitOfMeasure = t.Name.Contains("[")
-//            let args =                 
-//                t.GetGenericArguments() 
+//            let args =
+//                t.GetGenericArguments()
 //                |> Seq.map (if hasUnitOfMeasure then (fun t -> t.Name) else toString)
 //                |> separatedBy ", "
-//            let name, reverse = 
+//            let name, reverse =
 //                match t with
 //                | t when hasUnitOfMeasure -> toString t.UnderlyingSystemType, false
 //                | t when t.GetGenericTypeDefinition() = typeof<int seq>.GetGenericTypeDefinition() -> "seq", true
@@ -117,7 +117,7 @@ open Microsoft.FSharp.Core.CompilerServices
 //                | t -> fullName t, false
 //            let name = name.Split([| '`' |]).[0]
 //            if reverse then
-//                args + " " + name 
+//                args + " " + name
 //            else
 //                name + "<" + args + ">"
 //        | t when ns.Contains t.Namespace -> t.Name
@@ -127,7 +127,7 @@ open Microsoft.FSharp.Core.CompilerServices
 //        if parameters.Length = 0 then
 //            "()"
 //        else
-//            parameters 
+//            parameters
 //            |> Seq.map (fun p -> p.Name + ":" + (toString p.ParameterType))
 //            |> separatedBy " -> "
 //
@@ -136,34 +136,34 @@ open Microsoft.FSharp.Core.CompilerServices
 //        sb.Append(str) |> ignore
 //    let println() =
 //        sb.AppendLine() |> ignore
-//                
-//    let printMember (memberInfo: MemberInfo) =        
+//
+//    let printMember (memberInfo: MemberInfo) =
 //
 //        let print str =
-//            print "    "                
+//            print "    "
 //            print str
 //            println()
 //
 //        match memberInfo with
 //
-//        | :? ProvidedConstructor as cons -> 
-//            print <| "new : " + 
-//                     (toSignature <| cons.GetParameters()) + " -> " + 
+//        | :? ProvidedConstructor as cons ->
+//            print <| "new : " +
+//                     (toSignature <| cons.GetParameters()) + " -> " +
 //                     (toString memberInfo.DeclaringType)
 //
-//        | :? ProvidedLiteralField as field -> 
-//            print <| "val " + field.Name + ": " + 
+//        | :? ProvidedLiteralField as field ->
+//            print <| "val " + field.Name + ": " +
 //                     (toString field.FieldType) + " - " + (field.GetRawConstantValue().ToString())
 //
-//        | :? ProvidedProperty as prop -> 
-//            print <| (if prop.IsStatic then "static " else "") + "member " + 
-//                     prop.Name + ": " + (toString prop.PropertyType) + 
-//                     " with " + (if prop.CanRead && prop.CanWrite then "get, set" else if prop.CanRead then "get" else "set")            
+//        | :? ProvidedProperty as prop ->
+//            print <| (if prop.IsStatic then "static " else "") + "member " +
+//                     prop.Name + ": " + (toString prop.PropertyType) +
+//                     " with " + (if prop.CanRead && prop.CanWrite then "get, set" else if prop.CanRead then "get" else "set")
 //
 //        | :? ProvidedMethod as m ->
 //            if m.Attributes &&& MethodAttributes.SpecialName <> MethodAttributes.SpecialName then
-//                print <| (if m.IsStatic then "static " else "") + "member " + 
-//                m.Name + ": " + (toSignature <| m.GetParameters()) + 
+//                print <| (if m.IsStatic then "static " else "") + "member " +
+//                m.Name + ": " + (toSignature <| m.GetParameters()) +
 //                " -> " + (toString m.ReturnType)
 //
 //        | :? ProvidedTypeDefinition as t -> add t
@@ -199,11 +199,11 @@ open Microsoft.FSharp.Core.CompilerServices
 //            t.GetMembers() |> Seq.iter printMember
 //            println()
 //        currentDepth := !currentDepth + 1
-//    
+//
 //    sb.ToString()
 //
 //let prettyPrint t = innerPrettyPrint None (fun _ -> false) t
 //let prettyPrintWithMaxDepth maxDepth t = innerPrettyPrint (Some maxDepth) (fun _ -> false) t
-//let prettyPrintWithMaxDepthAndExclusions maxDepth exclusions t = 
+//let prettyPrintWithMaxDepthAndExclusions maxDepth exclusions t =
 //    let exclusions = Set.ofSeq exclusions
 //    innerPrettyPrint (Some maxDepth) (fun t -> exclusions.Contains t.Name) t
